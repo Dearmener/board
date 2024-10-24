@@ -53,14 +53,15 @@ import Datepicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { recordExerciseInDB, searchExerciseRecords, deleteExerciseRecord, getAllUsers } from '../utils/database'
 import { format } from 'date-fns'
+import type { ExerciseRecord } from '../types'
 
 const name = ref('')
 const searchName = ref('')
 const searchDate = ref(new Date())
 const message = ref('')
 const isSuccess = ref(true)
-const searchResults = ref([])
-const suggestions = ref([])
+const searchResults = ref<ExerciseRecord[]>([])
+const suggestions = ref<string[]>([])
 
 const recordExercise = async () => {
   if (name.value.trim()) {
@@ -119,57 +120,13 @@ const selectUser = (user: string) => {
   suggestions.value = []
 }
 </script>
+
 <style scoped>
-/* 调整输入框样式以使其更美观 */
-input {
-  width: 100%;
-  max-width: 400px;
-  padding: 12px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 0.3s ease;
-}
-
-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.dp__main {
-  max-width: 400px;
-  padding: 12px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 0.3s ease;
-}
-
-.dp__main:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-button {
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-button:hover {
-  background-color: #ff5733;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-button:active {
-  background-color: #c7412f;
+.input-page {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .autocomplete {
@@ -191,14 +148,11 @@ button:active {
   background-color: white;
   max-height: 150px;
   overflow-y: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .suggestions li {
   padding: 10px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
 .suggestions li:hover {
@@ -227,7 +181,7 @@ button:active {
   color: white;
   border: none;
   padding: 5px 10px;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
@@ -242,13 +196,30 @@ button:active {
   align-items: center;
   margin-bottom: 1rem;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 10px;
 }
 
 input, .dp__main {
   margin-right: 0;
-  width: 100%;
-  max-width: 400px;
+}
+
+.message {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
 }
 
 @media (max-width: 768px) {

@@ -1,5 +1,6 @@
 import { openDB } from 'idb'
 import { format } from 'date-fns'
+import type { ExerciseRecord } from '../types'
 
 const dbPromise = openDB('ExerciseDB', 1, {
   upgrade(db) {
@@ -13,7 +14,7 @@ export const recordExerciseInDB = async (name: string) => {
   await db.add('exercises', { name, date })
 }
 
-export const searchExerciseRecords = async (name: string, date: string) => {
+export const searchExerciseRecords = async (name: string, date: string): Promise<ExerciseRecord[]> => {
   const db = await dbPromise
   const allRecords = await db.getAll('exercises')
   return allRecords.filter(record => 
@@ -22,24 +23,24 @@ export const searchExerciseRecords = async (name: string, date: string) => {
   )
 }
 
-export const deleteExerciseRecord = async (id: number) => {
+export const deleteExerciseRecord = async (id: number): Promise<void> => {
   const db = await dbPromise
   await db.delete('exercises', id)
 }
 
-export const getAllUsers = async () => {
+export const getAllUsers = async (): Promise<string[]> => {
   const db = await dbPromise
-  const allRecords = await db.getAll('exercises')
+  const allRecords: ExerciseRecord[] = await db.getAll('exercises')
   const uniqueUsers = new Set(allRecords.map(record => record.name))
   return Array.from(uniqueUsers)
 }
 
-export const getLeaderboard = async (month: string) => {
+export const getLeaderboard = async (month: string): Promise<Array<{ name: string, count: number }>> => {
   const db = await dbPromise
-  const allRecords = await db.getAll('exercises')
+  const allRecords: ExerciseRecord[] = await db.getAll('exercises')
   const filteredRecords = allRecords.filter(record => record.date.startsWith(month))
   
-  const countMap = new Map()
+  const countMap = new Map<string, number>()
   filteredRecords.forEach(record => {
     countMap.set(record.name, (countMap.get(record.name) || 0) + 1)
   })
