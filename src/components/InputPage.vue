@@ -1,12 +1,12 @@
 <template>
   <div class="input-page">
-    <h1><i class="fas fa-dumbbell"></i> Exercise Input</h1>
+    <h1><i class="fas fa-dumbbell"></i> 运动记录</h1>
     <div class="input-container">
       <div class="autocomplete">
         <input
           v-model="name"
           @input="searchUsers"
-          placeholder="Enter your name"
+          placeholder="输入姓名"
         />
         <ul v-if="suggestions.length > 0" class="suggestions">
           <li
@@ -19,18 +19,31 @@
         </ul>
       </div>
       <button @click="recordExercise">
-        <i class="fas fa-plus"></i> Record Exercise
+        <i class="fas fa-plus"></i> 记录运动
       </button>
     </div>
     <div class="search-container">
-      <input v-model="searchName" placeholder="Search user" />
-      <Datepicker v-model="searchDate" :enable-time-picker="false" />
+      <input v-model="searchName" placeholder="搜索用户" />
+      <Datepicker 
+        v-model="searchDate" 
+        :enable-time-picker="false"
+        :clearable="true"
+        placeholder="选择日期（可选）"
+        :format-locale="zhCN"
+        :text-input-options="{ format: 'yyyy-MM-dd' }"
+      />
       <button @click="searchRecords">
-        <i class="fas fa-search"></i> Search
+        <i class="fas fa-search"></i> 搜索
       </button>
     </div>
     <div v-if="searchResults.length > 0" class="search-results">
-      <h2>Search Results</h2>
+      <h2>搜索结果</h2>
+      <div class="results-header">
+        <span>找到 {{ searchResults.length }} 条记录</span>
+        <button @click="exportResults" class="export-btn">
+          <i class="fas fa-download"></i> 导出CSV
+        </button>
+      </div>
       <ul>
         <li v-for="result in searchResults" :key="result.id">
           {{ result.name }} - {{ result.date }}
@@ -51,13 +64,14 @@
 import { ref } from 'vue'
 import Datepicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
-import { recordExerciseInDB, searchExerciseRecords, deleteExerciseRecord, getAllUsers } from '../utils/database'
+import { zhCN } from 'date-fns/locale'
+import { recordExerciseInDB, searchExerciseRecords, deleteExerciseRecord, getAllUsers, exportToCSV } from '../utils/database'
 import { format } from 'date-fns'
 import type { ExerciseRecord } from '../types'
 
 const name = ref('')
 const searchName = ref('')
-const searchDate = ref(new Date())
+const searchDate = ref<Date | null>(null)
 const message = ref('')
 const isSuccess = ref(true)
 const searchResults = ref<ExerciseRecord[]>([])
@@ -67,27 +81,50 @@ const recordExercise = async () => {
   if (name.value.trim()) {
     try {
       await recordExerciseInDB(name.value.trim())
-      message.value = 'Exercise recorded successfully!'
+      message.value = '运动记录添加成功！'
       isSuccess.value = true
       name.value = ''
     } catch (error) {
-      message.value = 'Error recording exercise. Please try again.'
+      message.value = error instanceof Error ? error.message === 'You have already recorded an exercise today' 
+        ? '今天已经记录过运动了' 
+        : error.message 
+        : '记录运动时出错，请重试。'
       isSuccess.value = false
     }
   } else {
-    message.value = 'Please enter a name.'
+    message.value = '请输入姓名。'
     isSuccess.value = false
   }
 }
 
 const searchRecords = async () => {
   try {
-    const results = await searchExerciseRecords(searchName.value, format(searchDate.value, 'yyyy-MM-dd'))
+    const formattedDate = searchDate.value ? format(searchDate.value, 'yyyy-MM-dd') : undefined
+    const results = await searchExerciseRecords(searchName.value, formattedDate)
     searchResults.value = results
-    message.value = results.length > 0 ? `Found ${results.length} record(s).` : 'No records found.'
+    message.value = results.length > 0 ? `找到 ${results.length} 条记录。` : '未找到记录。'
     isSuccess.value = true
   } catch (error) {
-    message.value = 'Error searching records. Please try again.'
+    message.value = '搜索记录时出错，请重试。'
+    isSuccess.value = false
+  }
+}
+
+const exportResults = () => {
+  try {
+    const csvContent = exportToCSV(searchResults.value)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `运动记录-${format(new Date(), 'yyyy-MM-dd')}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    message.value = '记录导出成功！'
+    isSuccess.value = true
+  } catch (error) {
+    message.value = '导出记录时出错，请重试。'
     isSuccess.value = false
   }
 }
@@ -95,11 +132,11 @@ const searchRecords = async () => {
 const deleteRecord = async (id: number) => {
   try {
     await deleteExerciseRecord(id)
-    message.value = 'Record deleted successfully!'
+    message.value = '记录删除成功！'
     isSuccess.value = true
-    searchRecords() // Refresh the search results
+    searchRecords()
   } catch (error) {
-    message.value = 'Error deleting record. Please try again.'
+    message.value = '删除记录时出错，请重试。'
     isSuccess.value = false
   }
 }
@@ -164,6 +201,22 @@ const selectUser = (user: string) => {
   text-align: left;
 }
 
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.export-btn {
+  background-color: #28a745;
+  padding: 0.5rem 1rem;
+}
+
+.export-btn:hover {
+  background-color: #218838;
+}
+
 .search-results ul {
   list-style-type: none;
   padding: 0;
@@ -174,6 +227,9 @@ const selectUser = (user: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 5px;
 }
 
 .delete-btn {

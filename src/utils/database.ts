@@ -8,19 +8,43 @@ const dbPromise = openDB('ExerciseDB', 1, {
   },
 })
 
+export const checkDailyRecord = async (name: string): Promise<boolean> => {
+  const db = await dbPromise
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const allRecords = await db.getAll('exercises')
+  return allRecords.some(record => 
+    record.name.toLowerCase() === name.toLowerCase() && 
+    record.date === today
+  )
+}
+
 export const recordExerciseInDB = async (name: string) => {
+  const hasRecordedToday = await checkDailyRecord(name)
+  if (hasRecordedToday) {
+    throw new Error('You have already recorded an exercise today')
+  }
+  
   const db = await dbPromise
   const date = format(new Date(), 'yyyy-MM-dd')
   await db.add('exercises', { name, date })
 }
 
-export const searchExerciseRecords = async (name: string, date: string): Promise<ExerciseRecord[]> => {
+export const searchExerciseRecords = async (name: string, date?: string): Promise<ExerciseRecord[]> => {
   const db = await dbPromise
   const allRecords = await db.getAll('exercises')
   return allRecords.filter(record => 
     (!name || record.name.toLowerCase().includes(name.toLowerCase())) &&
     (!date || record.date === date)
   )
+}
+
+export const exportToCSV = (records: ExerciseRecord[]): string => {
+  const headers = ['Name', 'Date']
+  const csvContent = [
+    headers.join(','),
+    ...records.map(record => `${record.name},${record.date}`)
+  ].join('\n')
+  return csvContent
 }
 
 export const deleteExerciseRecord = async (id: number): Promise<void> => {

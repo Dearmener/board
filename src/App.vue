@@ -1,8 +1,8 @@
 <template>
   <div id="app">
     <nav>
-      <router-link to="/">Input</router-link>
-      <router-link to="/leaderboard">Leaderboard</router-link>
+      <router-link to="/">记录</router-link>
+      <router-link to="/leaderboard">排行榜</router-link>
     </nav>
     <router-view></router-view>
   </div>

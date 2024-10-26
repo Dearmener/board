@@ -1,6 +1,6 @@
 <template>
   <div class="leaderboard-page">
-    <h1><i class="fas fa-trophy"></i> Exercise Leaderboard</h1>
+    <h1><i class="fas fa-trophy"></i> 运动排行榜</h1>
     <div class="month-selector">
       <input v-model="selectedMonth" type="month" @change="fetchLeaderboard" />
     </div>
@@ -11,7 +11,7 @@
           <i :class="getRankIcon(index)"></i>
           {{ user.name }}
         </div>
-        <div class="count">{{ user.count }} exercises</div>
+        <div class="count">{{ user.count }} 次运动</div>
       </div>
     </div>
   </div>
@@ -34,7 +34,7 @@ const fetchLeaderboard = async () => {
   try {
     leaderboard.value = await getLeaderboard(selectedMonth.value)
   } catch (error) {
-    console.error('Error fetching leaderboard:', error)
+    console.error('获取排行榜数据出错:', error)
   }
 }
 
