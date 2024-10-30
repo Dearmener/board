@@ -90,7 +90,7 @@ const suggestions = ref<string[]>([])
 const recordExercise = async () => {
   if (name.value.trim()) {
     try {
-      const currentDate = new Date()
+      // const currentDate = new Date()
       const formattedDate = inputDate.value ? format(inputDate.value, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
       await recordExerciseInDB(name.value.trim(),formattedDate)
       message.value = '运动记录添加成功！'
