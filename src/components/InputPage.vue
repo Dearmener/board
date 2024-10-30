@@ -17,17 +17,16 @@
             {{ suggestion }}
           </li>
         </ul>
-        <Datepicker 
+  
+      </div>
+      <Datepicker 
         v-model="inputDate" 
         :enable-time-picker="false"
         :clearable="true"
         placeholder="选择日期（可选）"
         :format-locale="zhCN"
         :text-input-options="{ format: 'yyyy-MM-dd' }"
-      />
-      </div>
-      
-      
+      /> 
       <button @click="recordExercise">
         <i class="fas fa-plus"></i> 记录运动
       </button>
@@ -172,6 +171,7 @@ const selectUser = (user: string) => {
 </script>
 
 <style scoped>
+
 .input-page {
   background-color: rgba(255, 255, 255, 0.9);
   border-radius: 10px;
@@ -182,6 +182,7 @@ const selectUser = (user: string) => {
 .autocomplete {
   position: relative;
   display: inline-block;
+  
 }
 
 .suggestions {
@@ -261,11 +262,12 @@ const selectUser = (user: string) => {
 
 .input-container, .search-container {
   display: flex;
-  justify-content: center;
+  justify-content: center; 
   align-items: center;
   margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 10px;
+  /* max-width: 900px; */
 }
 
 input, .dp__main {
@@ -290,17 +292,41 @@ input, .dp__main {
   background-color: #f8d7da;
   color: #721c24;
 }
+.input-container, .search-container {
+  display: flex;
+  justify-content: center; 
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: nowrap; /* 确保不换行 */
+  gap: 10px; /* 控制元素间距 */
+}
+input, .dp__main {
+  width: 250px; /* 设置宽度一致 */
+  height: 40px; /* 设置高度一致 */
+  padding: 0 10px; /* 内边距 */
+}
 
-@media (max-width: 768px) {
+button {
+  width: 150px; /* 设置按钮宽度一致 */
+  height: 40px; /* 设置按钮高度一致 */
+  padding: 0; /* 去掉内边距，保持高度一致 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+@media (max-width: 900px) {
   .input-container, .search-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  display: flex;
+  justify-content: flex-start; 
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: nowrap; /* 确保不换行 */
+  gap: 10px; /* 控制元素间距 */
+}
 
-  input, .dp__main, button {
-    width: 100%;
-    margin-right: 0;
-    margin-bottom: 10px;
-  }
+input, .dp__main, button {
+  flex: 1; /* 使输入框和按钮平分空间 */
+  min-width: 150px; /* 设置最小宽度 */
+}
 }
 </style>
