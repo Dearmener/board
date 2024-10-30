@@ -8,9 +8,10 @@ const dbPromise = openDB('ExerciseDB', 1, {
   },
 })
 
-export const checkDailyRecord = async (name: string): Promise<boolean> => {
+export const checkDailyRecord = async (name: string,date?:string): Promise<boolean> => {
   const db = await dbPromise
-  const today = format(new Date(), 'yyyy-MM-dd')
+  // const today = format(new Date(), 'yyyy-MM-dd')
+  const today = date || format(new Date(), 'yyyy-MM-dd')
   const allRecords = await db.getAll('exercises')
   return allRecords.some(record => 
     record.name.toLowerCase() === name.toLowerCase() && 
@@ -18,14 +19,14 @@ export const checkDailyRecord = async (name: string): Promise<boolean> => {
   )
 }
 
-export const recordExerciseInDB = async (name: string) => {
-  const hasRecordedToday = await checkDailyRecord(name)
+export const recordExerciseInDB = async (name: string, date?: string) => {
+  const hasRecordedToday = await checkDailyRecord(name,date)
   if (hasRecordedToday) {
     throw new Error('You have already recorded an exercise today')
   }
   
   const db = await dbPromise
-  const date = format(new Date(), 'yyyy-MM-dd')
+  // const date = format(date, 'yyyy-MM-dd')
   await db.add('exercises', { name, date })
 }
 

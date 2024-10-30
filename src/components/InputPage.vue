@@ -17,7 +17,17 @@
             {{ suggestion }}
           </li>
         </ul>
+        <Datepicker 
+        v-model="inputDate" 
+        :enable-time-picker="false"
+        :clearable="true"
+        placeholder="选择日期（可选）"
+        :format-locale="zhCN"
+        :text-input-options="{ format: 'yyyy-MM-dd' }"
+      />
       </div>
+      
+      
       <button @click="recordExercise">
         <i class="fas fa-plus"></i> 记录运动
       </button>
@@ -72,6 +82,7 @@ import type { ExerciseRecord } from '../types'
 const name = ref('')
 const searchName = ref('')
 const searchDate = ref<Date | null>(null)
+const inputDate = ref<Date | null>(null)
 const message = ref('')
 const isSuccess = ref(true)
 const searchResults = ref<ExerciseRecord[]>([])
@@ -80,7 +91,9 @@ const suggestions = ref<string[]>([])
 const recordExercise = async () => {
   if (name.value.trim()) {
     try {
-      await recordExerciseInDB(name.value.trim())
+      const currentDate = new Date()
+      const formattedDate = inputDate.value ? format(inputDate.value, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+      await recordExerciseInDB(name.value.trim(),formattedDate)
       message.value = '运动记录添加成功！'
       isSuccess.value = true
       name.value = ''
