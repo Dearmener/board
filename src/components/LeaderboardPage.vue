@@ -1,13 +1,20 @@
 <template>
-  <div class="leaderboard-page">
-    <h1><i class="fas fa-trophy"></i> 运动排行榜</h1>
+  <div 
+    ref="leaderboardPage" 
+    class="leaderboard-page"
+    :class="{ 'fullscreen': isFullscreen }"
+  >
+    <h1 v-if="!isFullscreen" class="title"><i class="fas fa-trophy"></i> 运动排行榜</h1>
     
     <div class="control-bar">
+     
       <!-- 月份选择器 -->
       <div class="month-selector">
         <input v-model="selectedMonth" type="month" @change="fetchLeaderboard" />
       </div>
-
+      <div v-if="isFullscreen" class="fullscreen-title">
+        <i class="fas fa-trophy"></i> 运动排行榜
+      </div>
       <!-- 控制面板 -->
       <div class="controls">
         <button 
@@ -56,11 +63,7 @@
     </div>
 
     <!-- 排行榜容器 -->
-    <div 
-      ref="leaderboardContainer"
-      class="leaderboard-container"
-      :class="{ 'fullscreen': isFullscreen }"
-    >    
+    <div class="leaderboard-container">    
       <div class="leaderboard-wrapper">
         <div 
           class="leaderboard" 
@@ -87,9 +90,8 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { format } from 'date-fns'
 import { getLeaderboard } from '../utils/database'
 
@@ -98,36 +100,38 @@ interface LeaderboardEntry {
   count: number
 }
 
-const leaderboardContainer = ref<HTMLElement | null>(null)
-const leaderboardWrapper = ref<HTMLElement | null>(null)
-const leaderboardEl = ref<HTMLElement | null>(null)
+const leaderboardPage = ref<HTMLElement | null>(null)
+const leaderboard = ref<LeaderboardEntry[]>([])
 const isFullscreen = ref(false)
 const selectedMonth = ref(format(new Date(), 'yyyy-MM'))
-const leaderboard = ref<LeaderboardEntry[]>([])
 const isPaused = ref(false)
 const speed = ref(20) // 默认20秒一次循环
 const needsScroll = ref(false)
 
 const calculateScrollNeed = () => {
-  if (!leaderboardWrapper.value || !leaderboardEl.value) return
+  const leaderboardEl = document.querySelector('.leaderboard')
+  const wrapperEl = document.querySelector('.leaderboard-wrapper')
+  if (!wrapperEl || !leaderboardEl) return
   
-  const wrapperHeight = leaderboardWrapper.value.clientHeight
-  const contentHeight = leaderboardEl.value.scrollHeight / 3 // 因为内容重复了3次
+  const wrapperHeight = wrapperEl.clientHeight
+  const contentHeight = leaderboardEl.scrollHeight / 3 // 因为内容重复了3次
   
   needsScroll.value = contentHeight > wrapperHeight
 }
+
 // 监听窗口大小变化
 const handleResize = () => {
   calculateScrollNeed()
 }
+
 // 全屏切换
 const toggleFullscreen = async () => {
-  if (!leaderboardContainer.value) return
+  if (!leaderboardPage.value) return
 
   try {
     if (!isFullscreen.value) {
-      if (leaderboardContainer.value.requestFullscreen) {
-        await leaderboardContainer.value.requestFullscreen()
+      if (leaderboardPage.value.requestFullscreen) {
+        await leaderboardPage.value.requestFullscreen()
       }
     } else {
       if (document.exitFullscreen) {
@@ -144,6 +148,14 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', () => {
     isFullscreen.value = !!document.fullscreenElement
   })
+  window.addEventListener('resize', handleResize)
+  calculateScrollNeed()
+})
+
+// 移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('fullscreenchange', () => {})
 })
 
 // 获取排行榜数据
@@ -199,7 +211,6 @@ const handleReset = () => {
 
 onMounted(fetchLeaderboard)
 </script>
-
 <style scoped>
 /* 基础布局 */
 .leaderboard-page {
@@ -214,15 +225,40 @@ onMounted(fetchLeaderboard)
 }
 
 /* 标题样式 */
-h1 {
+h1.title {
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 2rem;
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary-color, #333);
 }
 
-h1 i {
+h1.title i {
   margin-right: 10px;
+}
+
+.fullscreen-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
+  width: 100%; /* 确保占满容器宽度 */
+  /* margin-right: 2rem; */
+  position: absolute; /* 或 fixed，取决于你的需求 */
+  left: 0;
+  /* margin-right: 2rem; 移除这个属性因为它会影响居中 */
+  white-space: nowrap;
+  white-space: nowrap;
+  font-size: 60px;
+  color: var(--primary-color, #333);
+}
+
+.fullscreen-title i {
+  margin-right: 0.5rem;
 }
 
 /* 控制栏样式 */
@@ -296,7 +332,6 @@ h1 i {
   width: 100%;
   margin: 0 auto;
 }
-
 /* 列表样式 */
 .leaderboard {
   position: absolute;
@@ -405,24 +440,21 @@ h1 i {
     transform: scale(1);
   }
 }
-
 /* 全屏模式样式 */
-:fullscreen {
-  background-color: white;
-}
-
-:fullscreen .leaderboard-container {
-  background-color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.leaderboard-page.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
-  padding: 0;
+  margin: 0;
+  padding: 2rem;
+  border-radius: 0;
+  background-color: white;
+  z-index: 9999;
 }
 
-:fullscreen .control-bar {
+.leaderboard-page.fullscreen .control-bar {
   position: fixed;
   top: 0;
   left: 0;
@@ -432,22 +464,13 @@ h1 i {
   margin: 0;
   padding: 1rem 2rem;
   backdrop-filter: blur(10px);
+  height: 60px;
+  display: flex;
+  align-items: center;
 }
 
-:fullscreen h1 {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  margin: 0;
-  padding: 1rem;
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-}
-
-:fullscreen .leaderboard-wrapper {
-  margin-top: calc(60px + 2rem);
+.leaderboard-page.fullscreen .leaderboard-container {
+  margin-top: 80px;
 }
 
 /* 响应式布局 */
@@ -467,15 +490,22 @@ h1 i {
     width: 100%;
   }
 
-  :fullscreen .control-bar {
+  .leaderboard-page.fullscreen .control-bar {
+    flex-direction: row;
+    height: auto;
     padding: 0.5rem;
   }
+
+  .fullscreen-title {
+    font-size: 1.2rem;
+    margin-right: 1rem;
+  }
   
-  :fullscreen .leaderboard {
+  .leaderboard-page.fullscreen .leaderboard {
     padding: 0 1rem;
   }
   
-  :fullscreen .user-entry {
+  .leaderboard-page.fullscreen .user-entry {
     max-width: calc(100% - 2rem);
     padding: 0.75rem;
   }
