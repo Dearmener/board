@@ -7,7 +7,6 @@
     <h1 v-if="!isFullscreen" class="title"><i class="fas fa-trophy"></i> 运动排行榜</h1>
     
     <div class="control-bar">
-     
       <!-- 月份选择器 -->
       <div class="month-selector">
         <input v-model="selectedMonth" type="month" @change="fetchLeaderboard" />
@@ -15,8 +14,8 @@
       <div v-if="isFullscreen" class="fullscreen-title">
         <i class="fas fa-trophy"></i> 运动排行榜
       </div>
-      <!-- 控制面板 -->
-      <div class="controls">
+      <!-- 控制面板 - 只在需要滚动时显示 -->
+      <div v-if="needsScroll" class="controls">
         <button 
           @click="adjustSpeed(5)"
           class="control-btn"
@@ -60,20 +59,50 @@
           速度: {{ speed }}秒/循环
         </div>
       </div>
+      <!-- 全屏按钮始终显示 -->
+      <div v-else class="controls">
+        <button 
+          @click="toggleFullscreen"
+          class="control-btn"
+          title="全屏"
+        >
+          <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+        </button>
+      </div>
     </div>
 
     <!-- 排行榜容器 -->
-    <div class="leaderboard-container">    
-      <div class="leaderboard-wrapper">
+    <div class="leaderboard-container" ref="containerRef">    
+      <div class="leaderboard-wrapper" ref="wrapperRef">
         <div 
+          ref="leaderboardRef"
           class="leaderboard" 
-          :class="{ 'paused': isPaused }"
+          :class="{ 'paused': isPaused, 'scrolling': needsScroll }"
           :style="scrollStyle"
         >
-          <template v-for="n in 3" :key="n">
+          <template v-if="needsScroll">
+            <!-- 需要滚动时显示3份数据 -->
+            <template v-for="n in 3" :key="n">
+              <div 
+                v-for="(user, index) in leaderboard" 
+                :key="`${n}-${user.name}`"
+                class="user-entry"
+                :class="getRankClass(index)"
+              >
+                <div class="rank">{{ index + 1 }}</div>
+                <div class="name">
+                  <i :class="getRankIcon(index)"></i>
+                  {{ user.name }}
+                </div>
+                <div class="count">{{ user.count }} 次运动</div>
+              </div>
+            </template>
+          </template>
+          <template v-else>
+            <!-- 不需要滚动时只显示1份数据 -->
             <div 
               v-for="(user, index) in leaderboard" 
-              :key="`${n}-${user.name}`"
+              :key="user.name"
               class="user-entry"
               :class="getRankClass(index)"
             >
@@ -91,7 +120,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { format } from 'date-fns'
 import { getLeaderboard } from '../utils/database'
 
@@ -101,6 +130,9 @@ interface LeaderboardEntry {
 }
 
 const leaderboardPage = ref<HTMLElement | null>(null)
+const containerRef = ref<HTMLElement | null>(null)
+const wrapperRef = ref<HTMLElement | null>(null)
+const leaderboardRef = ref<HTMLElement | null>(null)
 const leaderboard = ref<LeaderboardEntry[]>([])
 const isFullscreen = ref(false)
 const selectedMonth = ref(format(new Date(), 'yyyy-MM'))
@@ -108,20 +140,35 @@ const isPaused = ref(false)
 const speed = ref(20) // 默认20秒一次循环
 const needsScroll = ref(false)
 
-const calculateScrollNeed = () => {
-  const leaderboardEl = document.querySelector('.leaderboard')
-  const wrapperEl = document.querySelector('.leaderboard-wrapper')
-  if (!wrapperEl || !leaderboardEl) return
+const calculateScrollNeed = async () => {
+  // 等待 DOM 更新
+  await nextTick()
   
-  const wrapperHeight = wrapperEl.clientHeight
-  const contentHeight = leaderboardEl.scrollHeight / 3 // 因为内容重复了3次
+  if (!wrapperRef.value || !leaderboardRef.value || leaderboard.value.length === 0) {
+    needsScroll.value = false
+    return
+  }
+
+  // 计算单个条目的高度
+  const singleEntryHeight = 80 // 预估的单个条目高度(可以根据实际调整)
+  const totalContentHeight = singleEntryHeight * leaderboard.value.length
+  const wrapperHeight = wrapperRef.value.clientHeight
+
+  console.log('Wrapper Height:', wrapperHeight)
+  console.log('Total Content Height:', totalContentHeight)
   
-  needsScroll.value = contentHeight > wrapperHeight
+  // 如果内容高度超过容器高度，则需要滚动
+  needsScroll.value = totalContentHeight > wrapperHeight
+
+  console.log('Needs Scroll:', needsScroll.value)
 }
 
 // 监听窗口大小变化
 const handleResize = () => {
-  calculateScrollNeed()
+  // 使用 requestAnimationFrame 来优化性能
+  window.requestAnimationFrame(() => {
+    calculateScrollNeed()
+  })
 }
 
 // 全屏切换
@@ -145,11 +192,18 @@ const toggleFullscreen = async () => {
 
 // 监听全屏状态变化
 onMounted(() => {
-  document.addEventListener('fullscreenchange', () => {
+  // 全屏状态变化监听
+  const handleFullscreenChange = () => {
     isFullscreen.value = !!document.fullscreenElement
-  })
+    // 全屏状态改变时重新计算，添加延时确保DOM更新完成
+    setTimeout(calculateScrollNeed, 200)
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
   window.addEventListener('resize', handleResize)
-  calculateScrollNeed()
+  
+  // 初始化
+  fetchLeaderboard()
 })
 
 // 移除事件监听
@@ -162,6 +216,8 @@ onUnmounted(() => {
 const fetchLeaderboard = async () => {
   try {
     leaderboard.value = await getLeaderboard(selectedMonth.value)
+    // 数据更新后重新计算是否需要滚动
+    setTimeout(calculateScrollNeed, 200)
   } catch (error) {
     console.error('获取排行榜数据出错:', error)
   }
@@ -169,7 +225,8 @@ const fetchLeaderboard = async () => {
 
 // 计算滚动样式
 const scrollStyle = computed(() => ({
-  animationDuration: `${speed.value}s`
+  animationDuration: needsScroll.value ? `${speed.value}s` : '0s',
+  animationPlayState: needsScroll.value ? (isPaused.value ? 'paused' : 'running') : 'paused'
 }))
 
 // 获取排名样式
@@ -203,13 +260,17 @@ const adjustSpeed = (change: number) => {
 const handleReset = () => {
   speed.value = 20
   isPaused.value = false
-  const leaderboardEl = document.querySelector('.leaderboard')
-  if (leaderboardEl) {
-    leaderboardEl.style.transform = 'translateY(0)'
+  if (leaderboardRef.value) {
+    leaderboardRef.value.style.transform = 'translateX(-50%) translateY(0)'
   }
 }
 
-onMounted(fetchLeaderboard)
+// 监听数据变化
+watch(() => leaderboard.value, () => {
+  nextTick(() => {
+    calculateScrollNeed()
+  })
+}, { deep: true })
 </script>
 <style scoped>
 /* 基础布局 */
@@ -244,14 +305,11 @@ h1.title i {
   font-weight: bold;
   display: flex;
   align-items: center;
-  align-items: center; /* 垂直居中 */
-  justify-content: center; /* 水平居中 */
-  width: 100%; /* 确保占满容器宽度 */
-  /* margin-right: 2rem; */
-  position: absolute; /* 或 fixed，取决于你的需求 */
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: absolute;
   left: 0;
-  /* margin-right: 2rem; 移除这个属性因为它会影响居中 */
-  white-space: nowrap;
   white-space: nowrap;
   font-size: 60px;
   color: var(--primary-color, #333);
@@ -271,12 +329,14 @@ h1.title i {
   background-color: #f8f9fa;
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
 .controls {
   display: flex;
   align-items: center;
   gap: 1rem;
+  z-index: 2;
 }
 
 .control-btn {
@@ -306,6 +366,7 @@ h1.title i {
 /* 月份选择器 */
 .month-selector {
   margin-bottom: 0;
+  z-index: 2;
 }
 
 .month-selector input {
@@ -318,7 +379,8 @@ h1.title i {
 .leaderboard-container {
   position: relative;
   flex-grow: 1;
-  height: 29rem;
+  height: calc(100vh - 200px); /* 动态调整容器高度 */
+  min-height: 29rem;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
@@ -327,24 +389,30 @@ h1.title i {
 
 .leaderboard-wrapper {
   position: relative;
-  height: 24rem;
+  height: 100%; /* 使用全高 */
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
+  overflow: hidden;
 }
+
 /* 列表样式 */
 .leaderboard {
   position: absolute;
   width: 100%;
   max-width: 1200px;
-  animation: scroll linear infinite;
   padding: 0 2rem;
   box-sizing: border-box;
   left: 50%;
   transform: translateX(-50%);
 }
 
-.leaderboard.paused {
+.leaderboard.scrolling {
+  animation: scroll linear infinite;
+  will-change: transform;
+}
+
+.leaderboard.scrolling.paused {
   animation-play-state: paused;
 }
 
@@ -362,6 +430,7 @@ h1.title i {
   max-width: calc(100% - 4rem);
   margin-left: auto;
   margin-right: auto;
+  height: 80px; /* 固定高度，与 script 中的预估高度对应 */
 }
 
 .user-entry:hover {
@@ -440,6 +509,7 @@ h1.title i {
     transform: scale(1);
   }
 }
+
 /* 全屏模式样式 */
 .leaderboard-page.fullscreen {
   position: fixed;
@@ -470,6 +540,7 @@ h1.title i {
 }
 
 .leaderboard-page.fullscreen .leaderboard-container {
+  height: calc(100vh - 80px);
   margin-top: 80px;
 }
 
@@ -508,6 +579,10 @@ h1.title i {
   .leaderboard-page.fullscreen .user-entry {
     max-width: calc(100% - 2rem);
     padding: 0.75rem;
+  }
+
+  .user-entry {
+    height: 70px; /* 移动端稍微降低高度 */
   }
 }
 
