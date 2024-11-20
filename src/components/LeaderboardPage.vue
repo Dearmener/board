@@ -137,7 +137,7 @@ const leaderboard = ref<LeaderboardEntry[]>([])
 const isFullscreen = ref(false)
 const selectedMonth = ref(format(new Date(), 'yyyy-MM'))
 const isPaused = ref(false)
-const speed = ref(20) // 默认20秒一次循环
+const speed = ref(50) // 默认20秒一次循环
 const needsScroll = ref(false)
 
 const calculateScrollNeed = async () => {
@@ -253,7 +253,7 @@ const togglePause = () => {
 // 控制速度
 const adjustSpeed = (change: number) => {
   const newSpeed = speed.value + change
-  speed.value = Math.min(Math.max(newSpeed, 5), 40) // 限制速度范围在5-40秒之间
+  speed.value = Math.min(Math.max(newSpeed, 10), 60) // 限制速度范围在5-40秒之间
 }
 
 // 重置
