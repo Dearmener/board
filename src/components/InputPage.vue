@@ -44,6 +44,16 @@
       <button @click="searchRecords">
         <i class="fas fa-search"></i> 搜索
       </button>
+      <button class="import-btn" @click="triggerFileInput">
+        <i class="fas fa-file-import"></i> 导入CSV
+      </button>
+      <input
+        type="file"
+        ref="fileInput"
+        accept=".csv"
+        style="display: none"
+        @change="handleFileImport"
+      />
     </div>
     <div v-if="searchResults.length > 0" class="search-results">
       <h2>搜索结果</h2>
@@ -86,6 +96,7 @@ const message = ref('')
 const isSuccess = ref(true)
 const searchResults = ref<ExerciseRecord[]>([])
 const suggestions = ref<string[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const recordExercise = async () => {
   if (name.value.trim()) {
@@ -167,6 +178,48 @@ const searchUsers = async () => {
 const selectUser = (user: string) => {
   name.value = user
   suggestions.value = []
+}
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileImport = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+
+  const file = input.files[0]
+  const reader = new FileReader()
+
+  reader.onload = async (e) => {
+    try {
+      const text = e.target?.result as string
+      const rows = text.split('\n')
+      
+      // 跳过标题行，处理每一行数据
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i].trim()
+        if (!row) continue
+        
+        const [name, date] = row.split(',')
+        if (name && date) {
+          await recordExerciseInDB(name.trim(), date.trim())
+        }
+      }
+
+      message.value = 'CSV文件导入成功！'
+      isSuccess.value = true
+      // 清空文件输入
+      if (fileInput.value) fileInput.value.value = ''
+      // 刷新搜索结果
+      await searchRecords()
+    } catch (error) {
+      message.value = '导入CSV文件时出错，请检查文件格式。'
+      isSuccess.value = false
+    }
+  }
+
+  reader.readAsText(file)
 }
 </script>
 
@@ -316,17 +369,16 @@ button {
 }
 @media (max-width: 900px) {
   .input-container, .search-container {
-  display: flex;
-  justify-content: flex-start; 
-  align-items: center;
-  margin-bottom: 1rem;
-  flex-wrap: nowrap; /* 确保不换行 */
-  gap: 10px; /* 控制元素间距 */
+    flex-wrap: wrap !important;
+  }
 }
 
-input, .dp__main, button {
-  flex: 1; /* 使输入框和按钮平分空间 */
-  min-width: 150px; /* 设置最小宽度 */
+.import-btn {
+  background-color: #17a2b8;
+  padding: 0.5rem 1rem;
 }
+
+.import-btn:hover {
+  background-color: #138496;
 }
 </style>
